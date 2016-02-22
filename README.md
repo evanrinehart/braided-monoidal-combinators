@@ -95,7 +95,10 @@ A message source that never sends anything. Useful for ignoring a port.
 When queried this will always produce the same result.
 
 ### `apply :: D r '[V (a -> b), V a] '[V b]`
-Merge two queries where one is a function
+Merge two query results where one is a function.
+
+### `just :: D r '[E (Maybe a)] '[E a]`
+Drop Nothings and only forward the unwrapped Justs.
 
 ### `snap :: (a -> b -> c) -> D r '[E a, V b] '[E c]`
 On the event do a query and combine with a function.
