@@ -67,6 +67,13 @@ copyCommand io1 io2 = \x -> do
   io1 x
   io2 x
 
+filterCommand :: Command Any -> Command Any
+filterCommand io = \x -> do
+  let mv = unsafeCoerce x :: Maybe Any
+  case mv of
+    Nothing -> return ()
+    Just v -> io v
+
 noop :: a -> IO ()
 noop _ = return ()
 
@@ -217,6 +224,11 @@ applyDiagram c r ins outs = case c of
   Compose c1 c2 -> (leftCrumbs, rightCrumbs, ins', outs') where
     (leftCrumbs, middleLeft, ins', _) = applyDiagram c1 r ins middleRight
     (middleRight, rightCrumbs, _, outs') = applyDiagram c2 r middleLeft outs
+  Filter -> case (ins, outs) of
+    ~(x:ins', y:outs') -> ([x'], [y'], ins', outs') where
+      (x', y') = case (x,y) of
+        (_, Cmd cmd) -> (Cmd (filterCommand cmd), DummyE)
+        (_, _) -> (Unknown, Unknown)
   Sum c1 c2 -> (x1++x2, y1++y2, ins'', outs'') where
     (x1, y1, ins', outs') = applyDiagram c1 r ins outs
     (x2, y2, ins'', outs'') = applyDiagram c2 r ins' outs'

@@ -28,6 +28,7 @@ data D :: * -> [*] -> [*] -> * where
   Snap :: (a -> b -> c) -> D r '[E a, V b] '[E c]
   Request :: (r -> Resource a b c) -> D r '[E a] '[E b, V c]
   Compose :: D r i j -> D r j k -> D r i k
+  Filter :: D r '[E (Maybe a)] '[E a]
   Sum :: D r i j -> D r i' j' -> D r (i :+: i') (j :+: j')
   Trace :: D r (f a ': i) (f a ': j) -> D r i j 
 
@@ -47,6 +48,7 @@ apply = Appl
 snap = Snap
 request = Request
 trace = Trace
+just = Filter
 
 snap' :: (a -> b -> c) -> D r '[V a, E b] '[E c]
 snap' f = swap >>> snap (flip f)

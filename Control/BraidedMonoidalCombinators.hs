@@ -10,7 +10,7 @@ module Control.BraidedMonoidalCombinators (
   Storage(..),
   empty,ident,(<>),(>>>),swap,copy,merge,
   hole,never,dmap,always,apply,snap,request,trace,
-  run,fork,var,snap',apply',request',
+  run,fork,var,snap',apply',request',just,
   equipCommandWorker,
   equipCommand,
   equipQueryWorker,
