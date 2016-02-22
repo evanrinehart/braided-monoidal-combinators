@@ -15,8 +15,10 @@ module Control.BraidedMonoidalCombinators (
   equipCommand,
   equipQueryWorker,
   equipQuery,
+  TerminationStatus(..),
   begin
 ) where
 
 import Control.BraidedMonoidalCombinators.Diagrams
 import Control.BraidedMonoidalCombinators.Runner
+import Control.BraidedMonoidalCombinators.Swarm
