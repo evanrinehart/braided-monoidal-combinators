@@ -1,4 +1,4 @@
-[logo]: https://raw.githubusercontent.com/evanrinehart/braided-monoidal-combinators/master/image.png "Combinator Symbols"
+![alt text][logo]
 
 # Braided Monoidal Combinators
 
@@ -130,3 +130,5 @@ to produce a value on demand. For best results this query should not block.
 
 When a V type appears on the destination, then a worker must be provided who
 will take a query and run in the background, executing the query when it wants.
+
+[logo]: https://raw.githubusercontent.com/evanrinehart/braided-monoidal-combinators/master/image.png "Combinator Symbols"
