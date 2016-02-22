@@ -11,7 +11,7 @@ of fun and serious.
 
 Two characteristics of this category are
 
-- **Monoidal**: You can add any two diagrams together to get a larger
+- **Monoidal**: You can concat any two diagrams together to get a larger
 diagram. The resulting interface is just the concatenation of the two.
 
 - **Braided**: there is a way to exchange any two halves of the diagram
@@ -99,7 +99,7 @@ On the event do a query and combine with a function.
 Do an external request to a resource. The response will appear as a new
 message. The resource may also be queried. This is useful for implementing
 IO based components. The resource must be provided before the program will
-run.
+run. 
 
 ### `var :: (r -> Storage a) -> D r '[E a] '[V a]`
 A mutable variable whose storage (and so initial value) must be provided at

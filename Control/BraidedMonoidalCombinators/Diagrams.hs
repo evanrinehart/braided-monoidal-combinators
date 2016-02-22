@@ -48,6 +48,15 @@ snap = Snap
 request = Request
 trace = Trace
 
+snap' :: (a -> b -> c) -> D r '[V a, E b] '[E c]
+snap' f = swap >>> snap (flip f)
+
+apply' :: D r '[V a, V (a -> b)] '[V b]
+apply' = swap >>> apply
+
+request' :: (r -> Resource a b c) -> D r '[E a] '[V c, E b]
+request' getR = request getR >>> swap
+
 data Storage a = Storage (IO a) (a -> IO ())
 
 resourceFromStorage :: Storage a -> Resource a () a
