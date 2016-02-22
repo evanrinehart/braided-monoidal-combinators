@@ -1,3 +1,5 @@
+[logo]: https://raw.githubusercontent.com/evanrinehart/braided-monoidal-combinators/master/image.png "Combinator Symbols"
+
 # Braided Monoidal Combinators
 
 These combinators let you construct low-level IO processing programs from
