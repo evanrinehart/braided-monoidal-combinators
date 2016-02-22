@@ -62,7 +62,7 @@ query transformer.
 Compose two diagrams that have compatible ports
 
 ### `(<>) :: D r i j -> D r i' j' -> D r (i :+: i') (j :+: j')`
-Concat two diagrams. The resulting interfaces will be concatenated.
+Concat two diagrams. The resulting interface is the concatenation.
 
 ### `empty :: D r [] []`
 The empty diagram has no ports and so does nothing. It's the identity for
