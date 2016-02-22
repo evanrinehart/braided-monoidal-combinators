@@ -101,6 +101,11 @@ message. The resource may also be queried. This is useful for implementing
 IO based components. The resource must be provided before the program will
 run.
 
+### `var :: (r -> Storage a) -> D r '[E a] '[V a]`
+A mutable variable whose storage (and so initial value) must be provided at
+launch time. Mutable variables are the natural transformations from the E
+functor to the V functor.
+
 ### `trace :: D r (f a ': i) (f a ': j) -> D r i j`
 Connect the first source and destination port with a loop. Certain bad loops
 are not allowed and will be rejected before a program can run. Valid traces have

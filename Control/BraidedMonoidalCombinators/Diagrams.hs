@@ -35,40 +35,23 @@ data D :: * -> [*] -> [*] -> * where
 (>>>) = Compose
 
 ident = Id
-
-empty :: D r '[] '[]
 empty = Empty
-
-swap :: D r '[f a, g b] '[g b, f a]
 swap = Swap
-
-copy :: D r '[f a] '[f a, f a]
 copy = Copy
-
-merge :: D r '[E a, E a] '[E a]
 merge = Merge
-
-hole :: D r '[f a] '[]
 hole = Null
-
-never :: D r '[] '[E a]
 never = Never
-
-dmap :: (a -> b) -> D r '[f a] '[f b]
 dmap = Fmap
-
-always :: a -> D r '[] '[V a]
 always = Pure
-
-apply :: D r '[V (a -> b), V a] '[V b]
 apply = Appl
-
-snap :: (a -> b -> c) -> D r '[E a, V b] '[E c]
 snap = Snap
-
-request :: (r -> Resource a b c) -> D r '[E a] '[E b, V c]
 request = Request
-
-trace :: D r (f a ': i) (f a ': j) -> D r i j 
 trace = Trace
 
+data Storage a = Storage (IO a) (a -> IO ())
+
+resourceFromStorage :: Storage a -> Resource a () a
+resourceFromStorage (Storage get set) = Resource set get
+
+var :: (r -> Storage a) -> D r '[E a] '[V a]
+var getStore = request (fmap resourceFromStorage getStore) >>> (hole <> ident)
