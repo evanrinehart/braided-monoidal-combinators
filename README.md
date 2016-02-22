@@ -11,6 +11,9 @@ For a detailed slide show explaining the background and theory of this
 module, see [here](https://docs.google.com/presentation/d/1ZTHNJolxcUYrl-aPAMHfb5e0EQ_Fxpm8KYgbC1UHtt4/edit?usp=sharing). As you will no doubt discover, braided monoidal combinators are a mix
 of fun and serious.
 
+The inspiration for this library comes from [http://graphicallinearalgebra.net/]
+which is an awesome blog, check it out.
+
 Two characteristics of this category are
 
 - **Monoidal**: You can concat any two diagrams together to get a larger
