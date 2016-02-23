@@ -66,3 +66,27 @@ resourceFromStorage (Storage get set) = Resource set get
 
 var :: (r -> Storage a) -> D r '[E a] '[V a]
 var getStore = request (fmap resourceFromStorage getStore) >>> (hole <> ident)
+
+swap3 :: D r '[f a, g b, h c] '[h c, g b, f a]
+swap3 = (ident <> swap) >>> (swap <> ident) >>> (ident <> swap)
+
+split :: D r '[E (a,b)] '[E a, E b]
+split = copy >>> (dmap fst <> dmap snd)
+
+liftA2 :: (a -> b -> c) -> D r '[V a, V b] '[V c]
+liftA2 f = (always f <> ident <> ident) >>> (apply <> ident) >>> apply
+
+liftA3 :: (a -> b -> c -> d) -> D r '[V a, V b, V c] '[V d]
+liftA3 f =
+  (always f <> ident <> ident <> ident) >>>
+  (apply <> ident <> ident) >>>
+  (apply <> ident) >>>
+  apply
+
+liftA4 :: (a -> b -> c -> d -> e) -> D r '[V a, V b, V c, V d] '[V e]
+liftA4 f =
+  (always f <> ident <> ident <> ident <> ident) >>>
+  (apply <> ident <> ident <> ident) >>>
+  (apply <> ident <> ident) >>>
+  (apply <> ident) >>>
+  apply

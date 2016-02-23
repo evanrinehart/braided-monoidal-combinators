@@ -107,7 +107,9 @@ instance Show Crumb where
     Unknown -> "Unknown"
     EWrk name _ -> "EWrk " ++ name
     VWrk name _ -> "VWrk " ++ name
-    
+
+dummy :: (String, Worker a)
+dummy = ("dummy", \_ -> forever (threadDelay 100000000))
 
 dummyify :: [Crumb] -> [Crumb]
 dummyify [] = []

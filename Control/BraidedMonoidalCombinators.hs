@@ -11,6 +11,8 @@ module Control.BraidedMonoidalCombinators (
   empty,ident,(<>),(>>>),swap,copy,merge,
   hole,never,dmap,always,apply,snap,request,trace,
   run,fork,var,snap',apply',request',just,
+  liftA2,liftA3,liftA4,
+  noop, dummy,
   equipCommandWorker,
   equipCommand,
   equipQueryWorker,
