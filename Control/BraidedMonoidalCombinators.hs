@@ -19,9 +19,11 @@ module Control.BraidedMonoidalCombinators (
   equipQueryWorker,
   equipQuery,
   TerminationStatus(..),
-  begin
+  begin,
+  braid
 ) where
 
 import Control.BraidedMonoidalCombinators.Diagrams
 import Control.BraidedMonoidalCombinators.Runner
 import Control.BraidedMonoidalCombinators.Swarm
+import Control.BraidedMonoidalCombinators.Permutation

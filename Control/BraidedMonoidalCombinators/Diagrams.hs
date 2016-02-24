@@ -32,6 +32,56 @@ data D :: * -> [*] -> [*] -> * where
   Sum :: D r i j -> D r i' j' -> D r (i :+: i') (j :+: j')
   Trace :: D r (f a ': i) (f a ': j) -> D r i j 
 
+instance Show (D r i j) where
+  show d = case d of
+    Empty -> "empty"
+    Id -> "ident"
+    Swap -> "swap"
+    Copy -> "copy"
+    Merge -> "merge"
+    Null -> "null"
+    Never -> "never"
+    Fmap _ -> "fmap _"
+    Pure _ -> "always _"
+    Appl -> "apply"
+    Snap _ -> "snap _"
+    Request _ -> "request _"
+    Compose d1 d2 -> s1 ++ " >>> " ++ s2 where
+      s1 = if size d1 > 1 && notCompose d1 then "(" ++ show d1 ++ ")" else show d1
+      s2 = if size d2 > 1 && notCompose d2 then "(" ++ show d2 ++ ")" else show d2
+    Filter -> "filter"
+    Sum d1 d2 -> s1 ++ " <> " ++ s2 where
+      s1 = if size d1 > 1 && notSum d1 then "(" ++ show d1 ++ ")" else show d1
+      s2 = if size d2 > 1 && notSum d2 then "(" ++ show d2 ++ ")" else show d2
+    Trace d' -> if size d' > 1 then "trace(" ++ show d' ++ ")" else "trace " ++ show d'
+
+notSum :: D r i j -> Bool
+notSum (Sum _ _) = False
+notSum _ = True
+
+notCompose :: D r i j -> Bool
+notCompose (Compose _ _) = False
+notCompose _ = True
+
+size :: D r i j -> Int
+size d = case d of
+  Empty -> 1
+  Id -> 1
+  Swap -> 1
+  Copy -> 1
+  Merge -> 1
+  Null -> 1
+  Never -> 1
+  Fmap _ -> 1
+  Pure _ -> 1
+  Appl -> 1
+  Snap _ -> 1
+  Request _ -> 1
+  Compose d1 d2 -> 2
+  Filter -> 1
+  Sum d1 d2 -> 2
+  Trace d' -> 1
+
 (<>) = Sum
 (>>>) = Compose
 
