@@ -6,10 +6,10 @@ module Control.BraidedMonoidalCombinators.Diagrams where
 
 -- Type definitions and utilities for diagrams
 
-type family (a :: [*]) :+: (b :: [*]) :: [*] where
-  '[] :+: xs = xs
-  (y ': ys) :+: xs = y ': (ys :+: xs)
-infixr 5 :+:
+type family (a :: [*]) :++: (b :: [*]) :: [*] where
+  '[] :++: xs = xs
+  (y ': ys) :++: xs = y ': (ys :++: xs)
+infixr 5 :++:
 
 data E a
 data V a
@@ -30,7 +30,7 @@ data D :: * -> [*] -> [*] -> * where
   Snap :: (a -> b -> c) -> D r '[E a, V b] '[E c]
   Compose :: D r i j -> D r j k -> D r i k
   Filter :: D r '[E (Maybe a)] '[E a]
-  Sum :: D r i j -> D r i' j' -> D r (i :+: i') (j :+: j')
+  Sum :: D r i j -> D r i' j' -> D r (i :++: i') (j :++: j')
   Trace :: D r (f a ': i) (f a ': j) -> D r i j 
   Request :: (r -> Resource a b c) -> D r '[E a] '[E b, V c]
 

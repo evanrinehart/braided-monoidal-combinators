@@ -66,7 +66,7 @@ query transformer.
 ### `(>>>) :: D r i j -> D r j k -> D r i k`
 Compose two diagrams that have compatible ports
 
-### `(<>) :: D r i j -> D r i' j' -> D r (i :+: i') (j :+: j')`
+### `(<>) :: D r i j -> D r i' j' -> D r (i :++: i') (j :++: j')`
 Concat two diagrams. The resulting interface is the concatenation.
 
 ### `empty :: D r '[] '[]`

@@ -8,6 +8,7 @@ module Control.BraidedMonoidalCombinators (
   Worker,
   Resource(..),
   Storage(..),
+  (:++:),
   empty,ident,(<>),(>>>),swap,copy,merge,
   hole,never,dmap,always,apply,snap,request,trace,
   run,fork,var,snap',apply',just,query,
