@@ -160,10 +160,10 @@ strategize letters posPrev posNext = answer where
   answer = pickBest results
   checkScore :: [Move] -> ([Move], Int)
   checkScore moves = (moves, answer) where
-    sep1 = separation (toLetters orig)
+    sep = separation (toLetters orig)
     pos' = posPrev ++ [Region $ applyRegionMove moves letters] ++ posNext
-    sep2 = separation (toLetters pos')
-    answer = abs (sep2 - sep1)
+    sep' = separation (toLetters pos')
+    answer = sep - sep'
 
 strategizePerm :: [String] -> [String] -> [Move]
 strategizePerm start target = answer where
@@ -224,6 +224,7 @@ eas 0 = [[]]
 eas 1 = [[Id]]
 eas 2 = [[Id,Id],[Swap]] -- speed up
 eas n
+  | n < 0 = error "eas of negative"
   | even n = basic ++ weird
   | odd n = basic' ++ weird1' ++ weird2' where
       half = eas (div n 2)
