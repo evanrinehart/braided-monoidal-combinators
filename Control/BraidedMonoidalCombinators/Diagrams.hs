@@ -4,6 +4,8 @@
 {-# LANGUAGE GADTs #-}
 module Control.BraidedMonoidalCombinators.Diagrams where
 
+-- Type definitions and utilities for diagrams
+
 type family (a :: [*]) :+: (b :: [*]) :: [*] where
   '[] :+: xs = xs
   (y ': ys) :+: xs = y ': (ys :+: xs)

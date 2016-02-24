@@ -14,6 +14,43 @@ import Debug.Trace
 
 import Control.BraidedMonoidalCombinators.Diagrams hiding (Swap, Id, Merge)
 
+{-
+This module is dedicated to the quasiquoter which can auto re-route segments
+of a diagram. Usage: [braid| a b c -> c b a c c c] Repeats are allowed which
+translate into merges and copies. Unused variables will be converted into
+holes or nevers.
+
+How it works:
+The algorithm to solve for the best network is not very efficient, but it
+does produce good results for reasonbly sized braiding expressions. I did
+not want huge inefficient solutions to slow down the compiler.
+
+The process has 3 stages.
+Stage 0: if necessary create outer layers to the solution which simply
+add holes and nevers to deal with unused variables.
+
+Stage 1: Starting from both sides, the goal is to merge repeated variables
+as fast as possible. The less wires there are in the middle, the easier it
+will be to swap things into place. Solution proceeds based on the current
+"position". Segments with adjacent repeated variables are not allowed to be
+swapped and are merged as soon as possible. Heterogenous regions between
+locked globs meanwhile are assigned a combination of swaps which reduce
+total separation by 2. The algorithm will settle for 1 or do nothing if
+necessary. When no repeats are left stage 1 is complete. No attempt is made
+to direct final positions of wires based on the progress of the other sides
+merging.
+
+Stage 2: When merging is complete from both sides, they now share a single
+set of unique variables, but probably out of order. A permutation using only
+swaps is selected. To choose the swap strategy, the algorithm goes with the
+moves that reduce total "distance" the most. Distance is the sum of squares
+of the distance of each variable to their target location.
+
+When up to 5 stages are ready to combine, all moves are converted into Haskell
+expressions and then combined. Note that merging in the destination half of
+the diagram are implemented as copy.
+-}
+
 data Segment =
   Glob Int String |
   Region [String]

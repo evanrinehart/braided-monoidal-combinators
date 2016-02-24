@@ -18,6 +18,24 @@ import Unsafe.Coerce
 import Control.BraidedMonoidalCombinators.Diagrams
 import Control.BraidedMonoidalCombinators.Swarm
 
+{-
+What the runner does:
+If you give it a diagram, proper resources and fully equip it with
+workers, commands, and queriable sources, then it will launch threads to
+execute everything. If any worker thread suffers an exception, everything
+shuts down. The caller can be provided with a join command to get the
+exit status.
+
+How it works:
+It treats the diagram as a function which simultaneously transforms
+provided commands into commands usable by workers, and provided queries
+into queries viewable by query workers. The final queries and commands are
+provided to the workers, which run in their own threads.
+
+Data processing in this module is highly unsafe! However the diagram
+language stops Any values that are not compatible from interacting.
+-}
+
 type Query a = IO a
 type Command a = a -> IO ()
 type Worker r = r -> IO ()
