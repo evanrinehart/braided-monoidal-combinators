@@ -142,3 +142,11 @@ liftA4 f =
   (apply <> ident <> ident) >>>
   (apply <> ident) >>>
   apply
+
+-- non polymorphic versions of dmap might help with type errors
+emap :: (a -> b) -> D r '[E a] '[E b]
+emap = Fmap
+
+vmap :: (a -> b) -> D r '[V a] '[V b]
+vmap = Fmap
+
