@@ -39,9 +39,9 @@ instance Show (D r i j) where
     Swap -> "swap"
     Copy -> "copy"
     Merge -> "merge"
-    Null -> "null"
+    Null -> "hole"
     Never -> "never"
-    Fmap _ -> "fmap _"
+    Fmap _ -> "dmap _"
     Pure _ -> "always _"
     Appl -> "apply"
     Snap _ -> "snap _"
@@ -49,7 +49,7 @@ instance Show (D r i j) where
     Compose d1 d2 -> s1 ++ " >>> " ++ s2 where
       s1 = if size d1 > 1 && notCompose d1 then "(" ++ show d1 ++ ")" else show d1
       s2 = if size d2 > 1 && notCompose d2 then "(" ++ show d2 ++ ")" else show d2
-    Filter -> "filter"
+    Filter -> "just"
     Sum d1 d2 -> s1 ++ " <> " ++ s2 where
       s1 = if size d1 > 1 && notSum d1 then "(" ++ show d1 ++ ")" else show d1
       s2 = if size d2 > 1 && notSum d2 then "(" ++ show d2 ++ ")" else show d2
