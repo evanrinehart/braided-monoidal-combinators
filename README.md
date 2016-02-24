@@ -137,4 +137,28 @@ to produce a value on demand. For best results this query should not block.
 When a V type appears on the destination, then a worker must be provided who
 will take a query and run in the background, executing the query when it wants.
 
+## Rearranging routes between components
+
+For anything but the simplest connections between components braiding and
+merge / copying is incredibly tedious and complex. However there is a
+quasiquoter which computes an efficient realization of any rearrangement:
+
+```
+> :set -XQuasiQuotes
+> [braid| x y z -> z y x ]
+(swap <> ident) >>> (ident <> swap) >>> (swap <> ident)
+
+> [braid| x x -> x x]
+merge >>> copy
+
+> [braid| a b c d e f g h -> e f g h a b c d |]
+(ident <> ident <> ident <> swap <> ident <> ident <> ident) >>>
+(ident <> ident <> swap <> swap <> ident <> ident) >>>
+(ident <> swap <> swap <> swap <> ident) >>>
+(swap <> swap <> swap <> swap) >>>
+(ident <> swap <> swap <> swap <> ident) >>>
+(ident <> ident <> swap <> swap <> ident <> ident) >>>
+(ident <> ident <> ident <> swap <> ident <> ident <> ident)
+```
+
 [logo]: https://raw.githubusercontent.com/evanrinehart/braided-monoidal-combinators/master/image.png "Combinator Symbols"
