@@ -16,7 +16,7 @@ import Control.BraidedMonoidalCombinators.Diagrams hiding (Swap, Id, Merge)
 
 {-
 This module is dedicated to the quasiquoter which can auto re-route segments
-of a diagram. Usage: [braid| a b c -> c b a c c c] Repeats are allowed which
+of a diagram. Usage: [braid| a b c -> c b a c c c |] Repeats are allowed which
 translate into merges and copies. Unused variables will be converted into
 holes or nevers.
 
