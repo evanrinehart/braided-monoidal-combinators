@@ -10,7 +10,7 @@ module Control.BraidedMonoidalCombinators (
   Storage(..),
   empty,ident,(<>),(>>>),swap,copy,merge,
   hole,never,dmap,always,apply,snap,request,trace,
-  run,fork,var,snap',apply',request',just,
+  run,fork,var,snap',apply',just,query,
   liftA2,liftA3,liftA4,
   emap, vmap,
   swap3, split,

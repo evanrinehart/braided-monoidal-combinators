@@ -28,11 +28,11 @@ data D :: * -> [*] -> [*] -> * where
   Pure :: a -> D r '[] '[V a]
   Appl :: D r '[V (a -> b), V a] '[V b]
   Snap :: (a -> b -> c) -> D r '[E a, V b] '[E c]
-  Request :: (r -> Resource a b c) -> D r '[E a] '[E b, V c]
   Compose :: D r i j -> D r j k -> D r i k
   Filter :: D r '[E (Maybe a)] '[E a]
   Sum :: D r i j -> D r i' j' -> D r (i :+: i') (j :+: j')
   Trace :: D r (f a ': i) (f a ': j) -> D r i j 
+  Request :: (r -> Resource a b c) -> D r '[E a] '[E b, V c]
 
 instance Show (D r i j) where
   show d = case d of
@@ -98,7 +98,6 @@ dmap = Fmap
 always = Pure
 apply = Appl
 snap = Snap
-request = Request
 trace = Trace
 just = Filter
 
@@ -108,16 +107,25 @@ snap' f = swap >>> snap (flip f)
 apply' :: D r '[V a, V (a -> b)] '[V b]
 apply' = swap >>> apply
 
-request' :: (r -> Resource a b c) -> D r '[E a] '[V c, E b]
-request' getR = request getR >>> swap
-
 data Storage a = Storage (IO a) (a -> IO ())
 
 resourceFromStorage :: Storage a -> Resource a () a
 resourceFromStorage (Storage get set) = Resource set get
 
+resourceFromReq :: (a -> IO b) -> Resource a b ()
+resourceFromReq req = Resource req (return ())
+
+resourceFromQuery :: IO a -> Resource () () a
+resourceFromQuery q = Resource (\_ -> return ()) q
+
 var :: (r -> Storage a) -> D r '[E a] '[V a]
-var getStore = request (fmap resourceFromStorage getStore) >>> (hole <> ident)
+var getStore = Request (fmap resourceFromStorage getStore) >>> (hole <> ident)
+
+request :: (r -> a -> IO b) -> D r '[E a] '[E b]
+request getReq = Request (fmap resourceFromReq getReq) >>> (ident <> hole)
+
+query :: (r -> IO a) -> D r '[] '[V a]
+query getQ = never >>> Request (fmap resourceFromQuery getQ) >>> (hole <> ident)
 
 swap3 :: D r '[f a, g b, h c] '[h c, g b, f a]
 swap3 = (ident <> swap) >>> (swap <> ident) >>> (ident <> swap)

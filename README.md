@@ -103,21 +103,22 @@ Drop Nothings and only forward the unwrapped Justs.
 ### `snap :: (a -> b -> c) -> D r '[E a, V b] '[E c]`
 On the event do a query and combine with a function.
 
-### `request :: (r -> Resource a b c) -> D r '[E a] '[E b, V c]`
-Do an external request to a resource. The response will appear as a new
-message. The resource may also be queried. This is useful for implementing
-IO based components. The resource must be provided before the program will
-run. 
-
-### `var :: (r -> Storage a) -> D r '[E a] '[V a]`
-A mutable variable whose storage (and so initial value) must be provided at
-launch time. Mutable variables are the natural transformations from the E
-functor to the V functor.
-
 ### `trace :: D r (f a ': i) (f a ': j) -> D r i j`
 Connect the first source and destination port with a loop. Certain bad loops
 are not allowed and will be rejected before a program can run. Valid traces have
 no effect in diagrams consisting only of push or only of pull connections.
+
+### `var :: (r -> Storage a) -> D r '[E a] '[V a]`
+A mutable variable whose storage must be provided at launch time. Mutable
+variables are the natural transformations from the E functor to the V functor.
+
+### `query :: (r -> IO a) -> D r '[] '[V a]`
+An internal component for querying a resource.
+
+### `request :: (r -> a -> IO b) -> D r '[E a] '[E b]`
+Do an external request to a resource. The response will appear as a new
+message. 
+
 
 ## Drivers
 
