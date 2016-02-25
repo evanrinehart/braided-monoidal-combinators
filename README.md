@@ -46,68 +46,68 @@ http://graphicallinearalgebra.net/ .
 
 ## Combinators
 
-### `ident :: D r '[f a] '[f a]`
+### `ident :: D '[f a] '[f a]`
 The identity diagram is a simple connection and has no effect.
 
-### `emap :: (a -> b) -> D r '[E a] '[E b]`
-### `vmap :: (a -> b) -> D r '[V a] '[V b]`
+### `emap :: (a -> b) -> D '[E a] '[E b]`
+### `vmap :: (a -> b) -> D '[V a] '[V b]`
 Lift a function using either the E or V functor to get an event or
 query transformer.
 
-### `(>>>) :: D r i j -> D r j k -> D r i k`
+### `(>>>) :: D i j -> D j k -> D i k`
 Compose two diagrams that have compatible ports
 
-### `(<>) :: D r i j -> D r i' j' -> D r (i :++: i') (j :++: j')`
+### `(<>) :: D i j -> D i' j' -> D (i :++: i') (j :++: j')`
 Concat two diagrams. The resulting interface is the concatenation.
 
-### `swap :: D r '[f a, g b] '[g b, f a]`
+### `swap :: D '[f a, g b] '[g b, f a]`
 Swaps two ports.
 
-### `copy :: D r '[f a] '[f a, f a]`
+### `copy :: D '[f a] '[f a, f a]`
 Copy a message going from source to two destinations, or merge two queries to
 use the same source. There is no defined time ordering of copied messages
 so don't rely on it.
 
-### `merge :: D r '[E a, E a] '[E a]`
+### `merge :: D '[E a, E a] '[E a]`
 Merge two message channels going right.
 
-### `hole :: D r '[f a] '[]`
+### `hole :: D '[f a] '[]`
 Messages entering here will be lost. Useful for ignoring a port. Viewable sources
 will never be queried by this.
 
-### `never :: D r '[] '[E a]`
+### `never :: D '[] '[E a]`
 A message source that never sends anything. Useful for ignoring a port.
 
-### `always :: a -> D r '[] '[V a]`
+### `always :: a -> D '[] '[V a]`
 When queried this will always produce the same result.
 
-### `apply :: D r '[V (a -> b), V a] '[V b]`
-### `apply' :: D r '[V a, V (a -> b)] '[V b]`
+### `apply  :: D '[V (a -> b), V a] '[V b]`
+### `apply' :: D '[V a, V (a -> b)] '[V b]`
 Merge two query results where one is a function.
 
-### `just :: D r '[E (Maybe a)] '[E a]`
+### `just :: D '[E (Maybe a)] '[E a]`
 Drop Nothings and only forward the unwrapped Justs.
 
-### `snap  :: (a -> b -> c) -> D r '[E a, V b] '[E c]`
-### `snap' :: (a -> b -> c) -> D r '[V b, E a] '[E c]`
+### `snap  :: (a -> b -> c) -> D '[E a, V b] '[E c]`
+### `snap' :: (a -> b -> c) -> D '[V b, E a] '[E c]`
 On the event do a query and combine with a function.
 
-### `trace :: D r (f a ': i) (f a ': j) -> D r i j`
+### `trace :: D (f a ': i) (f a ': j) -> D i j`
 Connect the first source and destination port with a loop. Certain bad loops
 are not allowed and will be rejected before a program can run. Valid traces have
 no effect in diagrams consisting only of push or only of pull connections.
 
-### `var :: (r -> Storage a) -> D r '[E a] '[V a]`
+### `var :: Storage a -> D '[E a] '[V a]`
 A mutable variable whose storage must be provided at launch time.
 
-### `query :: (r -> IO a) -> D r '[] '[V a]`
+### `query :: D '[V (IO a)] '[V a]`
 An internal component for querying a resource.
 
-### `request :: D r '[E (IO a)] '[E a]`
+### `request :: D '[E (IO a)] '[E a]`
 Do an external request to a resource. The response will appear as a new
 message.
 
-### `empty :: D r '[] '[]`
+### `empty :: D '[] '[]`
 The empty diagram has no ports and so does nothing. It's the identity for
 diagram concat. Many diagrams are equivalent to empty after you have
 blocked all ports with holes, nevers, or traces.
