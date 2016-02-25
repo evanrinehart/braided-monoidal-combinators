@@ -103,7 +103,7 @@ A mutable variable whose storage must be provided at launch time.
 ### `query :: (r -> IO a) -> D r '[] '[V a]`
 An internal component for querying a resource.
 
-### `request :: (r -> a -> IO b) -> D r '[E a] '[E b]`
+### `request :: D r '[E (IO a)] '[E a]`
 Do an external request to a resource. The response will appear as a new
 message.
 

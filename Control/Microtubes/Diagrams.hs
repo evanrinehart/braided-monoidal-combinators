@@ -118,11 +118,14 @@ resourceFromReq req = Resource req (return ())
 resourceFromQuery :: IO a -> Resource () () a
 resourceFromQuery q = Resource (\_ -> return ()) q
 
+execResource :: Resource (IO a) a ()
+execResource = Resource (\io -> io) (return ())
+
 var :: (r -> Storage a) -> D r '[E a] '[V a]
 var getStore = Request (fmap resourceFromStorage getStore) >>> (hole <> ident)
 
-request :: (r -> a -> IO b) -> D r '[E a] '[E b]
-request getReq = Request (fmap resourceFromReq getReq) >>> (ident <> hole)
+request :: D r '[E (IO a)] '[E a]
+request = Request (const execResource) >>> (ident <> hole)
 
 query :: (r -> IO a) -> D r '[] '[V a]
 query getQ = never >>> Request (fmap resourceFromQuery getQ) >>> (hole <> ident)
