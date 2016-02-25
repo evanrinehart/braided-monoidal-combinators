@@ -82,12 +82,14 @@ A message source that never sends anything. Useful for ignoring a port.
 When queried this will always produce the same result.
 
 ### `apply :: D r '[V (a -> b), V a] '[V b]`
+### `apply' :: D r '[V a, V (a -> b)] '[V b]`
 Merge two query results where one is a function.
 
 ### `just :: D r '[E (Maybe a)] '[E a]`
 Drop Nothings and only forward the unwrapped Justs.
 
-### `snap :: (a -> b -> c) -> D r '[E a, V b] '[E c]`
+### `snap  :: (a -> b -> c) -> D r '[E a, V b] '[E c]`
+### `snap' :: (a -> b -> c) -> D r '[V b, E a] '[E c]`
 On the event do a query and combine with a function.
 
 ### `trace :: D r (f a ': i) (f a ': j) -> D r i j`
