@@ -15,7 +15,8 @@ connected in those locations.
 `E` (event) ports expect an event source on the source side and an event
 handler on the destination side.  `V` (view) ports expect a queryable resource
 on the source side and a querying process on the destination. Haskell functions
-can be promoted to the level of event or view transformer using `dmap`.
+can be promoted to the level of event or view transformer using `emap` or
+`vmap` respectively.
 
 The two main ways to combine diagrams is through composition `(>>>)` and
 through concatenation `(<>)`. Composed diagrams must have compatible source
@@ -48,8 +49,9 @@ http://graphicallinearalgebra.net/ .
 ### `ident :: D r '[f a] '[f a]`
 The identity diagram is a simple connection and has no effect.
 
-### `dmap :: (a -> b) -> D r '[f a] '[f b]`
-Lift a function using either the E or V functor to get a message or
+### `emap :: (a -> b) -> D r '[E a] '[E b]`
+### `vmap :: (a -> b) -> D r '[V a] '[V b]`
+Lift a function using either the E or V functor to get an event or
 query transformer.
 
 ### `(>>>) :: D r i j -> D r j k -> D r i k`
@@ -57,10 +59,6 @@ Compose two diagrams that have compatible ports
 
 ### `(<>) :: D r i j -> D r i' j' -> D r (i :++: i') (j :++: j')`
 Concat two diagrams. The resulting interface is the concatenation.
-
-### `empty :: D r '[] '[]`
-The empty diagram has no ports and so does nothing. It's the identity for
-diagram concat.
 
 ### `swap :: D r '[f a, g b] '[g b, f a]`
 Swaps two ports.
@@ -98,15 +96,19 @@ are not allowed and will be rejected before a program can run. Valid traces have
 no effect in diagrams consisting only of push or only of pull connections.
 
 ### `var :: (r -> Storage a) -> D r '[E a] '[V a]`
-A mutable variable whose storage must be provided at launch time. Mutable
-variables are the natural transformations from the E functor to the V functor.
+A mutable variable whose storage must be provided at launch time.
 
 ### `query :: (r -> IO a) -> D r '[] '[V a]`
 An internal component for querying a resource.
 
 ### `request :: (r -> a -> IO b) -> D r '[E a] '[E b]`
 Do an external request to a resource. The response will appear as a new
-message. 
+message.
+
+### `empty :: D r '[] '[]`
+The empty diagram has no ports and so does nothing. It's the identity for
+diagram concat. Many diagrams are equivalent to empty after you have
+blocked all ports with holes, nevers, or traces.
 
 ## Routing QuasiQuoter
 
