@@ -4,7 +4,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
-module Control.BraidedMonoidalCombinators.Runner where
+module Control.Microtubes.Runner where
 
 import GHC.Prim
 import Data.Either
@@ -14,10 +14,12 @@ import Data.IORef
 import Data.Functor
 import Data.Char
 import Unsafe.Coerce
+import System.IO.Unsafe
 import Control.Exception
+import Control.Concurrent.STM
 
-import Control.BraidedMonoidalCombinators.Diagrams
-import Control.BraidedMonoidalCombinators.Swarm
+import Control.Microtubes.Diagrams
+import Control.Microtubes.Swarm
 
 {-
 What the runner does:
@@ -184,85 +186,103 @@ fork (MkRun (r,c) ins outs) = do
   print rCrumbs
   tidsRef <- newIORef []
   let append x = modifyIORef tidsRef (x:)
-  let (commands, queries, _, _) = applyDiagram c r lCrumbs rCrumbs
+  let (commands, queries, _, _, reqWorkers) = applyDiagram c r lCrumbs rCrumbs
   putStrLn "transformed:"
   print commands
   print queries
   let workerEs = zipWorkerE ins commands
   let workerVs = zipWorkerV outs queries
-  forkSwarm (workerEs ++ workerVs)
+--  workerReqs <- forM mkWorkerReqs $ \mk -> do
+--    tchan <- newTChanIO
+--    return (mk tchan)
+  forkSwarm (map (\x -> ("request worker", x)) reqWorkers ++ workerEs ++ workerVs)
 
-applyDiagram :: D r i j -> r -> [Crumb] -> [Crumb] -> ([Crumb], [Crumb], [Crumb], [Crumb])
+-- This is morally reprehensible!
+unsafeTChanOutOfNowhere :: () -> TChan Any
+unsafeTChanOutOfNowhere () = unsafePerformIO newTChanIO
+
+setupMkReq :: Command Any -> (Any -> IO Any) -> TChan Any -> (Command Any, IO ())
+setupMkReq cmd req tchan = (cmd', worker) where
+  cmd' x = atomically (writeTChan tchan x)
+  worker = reqWorker cmd req tchan
+
+reqWorker :: (Any -> IO ()) -> (Any -> IO Any) -> TChan Any -> IO ()
+reqWorker exec req tchan = forever $ do
+  x <- atomically (readTChan tchan)
+  y <- req x
+  exec y
+
+applyDiagram :: D r i j -> r -> [Crumb] -> [Crumb] -> ([Crumb], [Crumb], [Crumb], [Crumb], [IO ()])
 applyDiagram c r ins outs = case c of
-  Empty -> ([], [], ins, outs)
+  Empty -> ([], [], ins, outs, [])
   Id -> case (ins, outs) of
-    ~(x:ins', y:outs') -> ([y], [x], ins', outs')
+    ~(x:ins', y:outs') -> ([y], [x], ins', outs', [])
   Swap -> case (ins, outs) of
-    ~(x1:x2:ins', y1:y2:outs') -> ([y2,y1], [x2,x1], ins', outs')
+    ~(x1:x2:ins', y1:y2:outs') -> ([y2,y1], [x2,x1], ins', outs', [])
   Copy -> case (ins, outs) of
-    ~(x:ins', y1:y2:outs') -> ([x'], [y1',y2'], ins', outs') where
+    ~(x:ins', y1:y2:outs') -> ([x'], [y1',y2'], ins', outs', []) where
       (x',y1',y2') = case (x,y1,y2) of
         (_, Cmd c1, Cmd c2) -> (Cmd (copyCommand c1 c2), DummyE, DummyE)
         (Qry q, _, _) -> (DummyV, Qry q, Qry q)
         (_, _, _) -> (Unknown, Unknown, Unknown)
   Merge -> case (ins, outs) of
-    ~(x1:x2:ins', y:outs') -> ([y, y], [z], ins', outs') where
+    ~(x1:x2:ins', y:outs') -> ([y, y], [z], ins', outs', []) where
       z = case (x1,x2) of
         (Unknown, _) -> Unknown
         (_, Unknown) -> Unknown
         _ -> DummyE
   Null -> case ins of
-    ~(x:ins') -> ([x'], [], ins', outs) where
+    ~(x:ins') -> ([x'], [], ins', outs, []) where
       x' = case x of
         DummyE -> Cmd noop
         (Qry _) -> DummyV
         _ -> Unknown
   Never -> case outs of
-    ~(y:outs') -> ([], [y'], ins, outs') where
+    ~(y:outs') -> ([], [y'], ins, outs', []) where
       y' = case y of
         (Cmd _) -> DummyE
         _ -> Unknown
   Fmap f -> case (ins, outs) of
-    ~(x:ins', y:outs') -> ([x'], [y'], ins', outs') where
+    ~(x:ins', y:outs') -> ([x'], [y'], ins', outs', []) where
       (x',y') = case (x,y) of
         (_, Cmd cmd) -> (Cmd (mapCommand f cmd), DummyE)
         (Qry q, _) -> (DummyV, Qry (mapQuery f q))
         (_,_) -> (Unknown, Unknown)
   Pure v -> case outs of
-    ~(_:outs') -> ([], [Qry (pureQuery v)], ins, outs')
+    ~(_:outs') -> ([], [Qry (pureQuery v)], ins, outs', [])
   Appl -> case (ins, outs) of
-    ~(x1:x2:ins', y:outs') -> ([x1',x2'], [y'], ins', outs') where
+    ~(x1:x2:ins', y:outs') -> ([x1',x2'], [y'], ins', outs', []) where
       (x1', x2', y') = case (x1,x2,y) of
         (Qry q1, Qry q2, _) -> (DummyV, DummyV, Qry (applQueries q1 q2))
         (_,_,_) -> (Unknown, Unknown, Unknown)
   Snap f -> case (ins, outs) of
-    ~(x1:x2:ins', y:outs') -> ([x1',x2'], [y'], ins', outs') where
+    ~(x1:x2:ins', y:outs') -> ([x1',x2'], [y'], ins', outs', []) where
       (x1', x2', y') = case (x1,x2,y) of
         (_, Qry q, Cmd cmd) -> (Cmd (doSnap f q cmd), DummyV, DummyE)
         (_,_,_) -> (Unknown, Unknown, Unknown)
   Request getResource -> let (Resource exec view) = getResource r in case (ins, outs) of
-    ~(x:ins', y1:y2:outs') -> ([x'], [y1',y2'], ins', outs') where
-      (x', y1', y2') = case (x, y1, y2) of
-        (_, Cmd cmd, _) -> (Cmd (doCosnap exec cmd), DummyE, Qry (viewCosnap view))
-        (_, _, _) -> (Unknown, Unknown, Unknown)
-  Compose c1 c2 -> (leftCrumbs, rightCrumbs, ins', outs') where
-    (leftCrumbs, middleLeft, ins', _) = applyDiagram c1 r ins middleRight
-    (middleRight, rightCrumbs, _, outs') = applyDiagram c2 r middleLeft outs
+    ~(x:ins', y1:y2:outs') -> ([x'], [y1',y2'], ins', outs', mk) where
+      (x', y1', y2', mk) = case (x, y1, y2) of
+        (_, Cmd cmd, _) -> let (cmd', mkreq) = setupMkReq cmd (unsafeCoerce exec) (unsafeTChanOutOfNowhere ()) in (Cmd cmd', DummyE, Qry (viewCosnap view), [mkreq])
+        (_, _, _) -> (Unknown, Unknown, Unknown, [])
+  Compose c1 c2 -> (leftCrumbs, rightCrumbs, ins', outs', mkr1++mkr2) where
+    (leftCrumbs, middleLeft, ins', _, mkr1) = applyDiagram c1 r ins middleRight
+    (middleRight, rightCrumbs, _, outs', mkr2) = applyDiagram c2 r middleLeft outs
   Filter -> case (ins, outs) of
-    ~(x:ins', y:outs') -> ([x'], [y'], ins', outs') where
+    ~(x:ins', y:outs') -> ([x'], [y'], ins', outs', []) where
       (x', y') = case (x,y) of
         (_, Cmd cmd) -> (Cmd (filterCommand cmd), DummyE)
         (_, _) -> (Unknown, Unknown)
-  Sum c1 c2 -> (x1++x2, y1++y2, ins'', outs'') where
-    (x1, y1, ins', outs') = applyDiagram c1 r ins outs
-    (x2, y2, ins'', outs'') = applyDiagram c2 r ins' outs'
+  Sum c1 c2 -> (x1++x2, y1++y2, ins'', outs'', mkr1++mkr2) where
+    (x1, y1, ins', outs', mkr1) = applyDiagram c1 r ins outs
+    (x2, y2, ins'', outs'', mkr2) = applyDiagram c2 r ins' outs'
   Trace c' -> 
-    let (x:xs, y:ys, ins', outs') = applyDiagram c' r (Unknown:ins) (Unknown:outs) in
-    let drop1 (x:xs, y:ys, ins, outs) = (xs,ys,ins,outs) in
+    let (x:xs, y:ys, ins', outs',mkreqs) = applyDiagram c' r (Unknown:ins) (Unknown:outs) in
+    let drop1 (x:xs, y:ys, ins, outs, mkreqs) = (xs,ys,ins,outs,mkreqs) in
     case (x,y) of
       (orig@(Cmd cmd), _) -> drop1 (applyDiagram c' r (DummyE:ins) (orig:outs))
       (_, orig@(Qry q)) -> drop1 (applyDiagram c' r (orig:ins) (DummyV:outs))
-      _ -> (xs,ys,ins',outs')
+      _ -> (xs,ys,ins',outs',mkreqs)
 
 -- experimental component which runs a sub program which can be swapped out
 -- data PortParts i j = PortParts [TMVar Any] [TMVar Any]

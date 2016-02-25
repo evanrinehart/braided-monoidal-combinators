@@ -1,60 +1,49 @@
 ![alt text][logo]
 
-# Braided Monoidal Combinators
+# Microtubes
+
+## Overview
 
 These combinators let you construct low-level IO processing programs from
-composable pieces. The underlying data type is a category where the objects
-are lists of Haskell types and the morphisms are diagrams that connect one
-list of types to another.
+composable pieces.
 
-For a detailed slide show explaining the background and theory of this
-module, see [here](https://docs.google.com/presentation/d/1ZTHNJolxcUYrl-aPAMHfb5e0EQ_Fxpm8KYgbC1UHtt4/edit?usp=sharing). As you will no doubt discover, braided monoidal combinators are a mix
-of fun and serious.
+Each diagram is either a primitive tube or a combination of smaller diagrams.
+Each diagram has two sides, the source and the destination. Each side has
+a list of port types which determine what kind of process or tube may be
+connected in those locations.
 
-The inspiration for this library comes from http://graphicallinearalgebra.net/
-which is an awesome blog, check it out.
+`E` (event) ports expect an event source on the source side and an event
+handler on the destination side.  `V` (view) ports expect a queryable resource
+on the source side and a querying process on the destination. Haskell functions
+can be promoted to the level of event or view transformer using `dmap`.
 
-Two characteristics of this category are
+The two main ways to combine diagrams is through composition `(>>>)` and
+through concatenation `(<>)`. Composed diagrams must have compatible source
+and destination, but any two diagrams can be concatenated. Composition has
+the effect of hiding internal connections, and concatenation has the effect
+of creating a larger diagram out of smaller ones.
 
-- **Monoidal**: You can concat any two diagrams together to get a larger
-diagram. The resulting interface is just the concatenation of the two.
+Event and view transformers can interact directly through mutable variables.
+The runtime dependence on variables is evident in the diagrams type. Variables
+are an example of a resource. Other resources include external request actions
+and queries that don't correspond to an external connection. Also views can be
+accessed at the time of an event through the `snap` component.
 
-- **Braided**: there is a way to exchange any two halves of the diagram
-interface without changing the behavior. This property can be used to
-permute an interface in any way.
+Reordering, removing, duplicating, and merging tubes in the connection between
+two diagrams is greatly simplified using the `[braid| i -> j |]` quasiquoter.
 
-The two interface lists of each diagram actually contain two kinds of types:
+For stateful systems the `trace` operation loops the source back around to the
+destination. The implementation rejects diagrams with invalid loops visible
+to the outside world.
 
-- **Push**: These represent ports for messages coming from the source and
-traveling to the destination. Push drivers can send messages at any time.
+For a detailed slide show explaining the background and theory of this module,
+see
+[here](https://docs.google.com/presentation/d/1ZTHNJolxcUYrl-aPAMHfb5e0EQ_Fxpm8KYgbC1UHtt4/edit?usp=sharing).
 
-- **Pull**: These represent views of some source as seen by the destination.
-Pull drivers can query views at any time.
+The inspiration for these combinators comes from Pawel Sobocinski’s great blog
+http://graphicallinearalgebra.net/ .
 
-Push and pull diagrams can interact through mutable variables, support for
-which must be provided before a program will run. Each time a push message
-arrives at a mutable variable it updates, and queries of the variable always
-correspond to the last message event's value.
-
-Each program effectively runs in its own thread and can be wait-joined by
-a monitoring thread or many programs can be spawned together. If any driver
-experiences an exception then all resources are released. Auto respawning
-of driver workers is not yet supported.
-
-The basic push message transformer is a functor E (for event) which maps
-A to [E A] and f :: A -> B to a diagram of type D r [E A] [E B] for some 
-resource type r. Similarly the basic view transformer is a functor V which
-maps A to [V A] and g :: A -> B to a diagram of type D r [V A] [V B].
-Mutable variables are the natural transformation from E to V which maps type
-A to a diagram of type D r [E A] [V A]. This diagram has to remember the
-last message seen in order to satisfy the natural transformation laws.
-
-## Description of primitives
-
-f a and g a mean that E or V can be used. Other functors will not produce
-a runnable program. Some primitives are specific to either E or V. The
-DataKinds extension required to write the diagram types requires you to
-put a quote to denote the type-level list constructor.
+## Combinators
 
 ### `ident :: D r '[f a] '[f a]`
 The identity diagram is a simple connection and has no effect.
@@ -119,26 +108,7 @@ An internal component for querying a resource.
 Do an external request to a resource. The response will appear as a new
 message. 
 
-
-## Drivers
-
-After constructing a diagram you can attach various drivers to communicate
-with each other. There are four kinds of drivers that correspond with the
-input and output of push and pull diagram interfaces.
-
-When an E type appears on the source, then a worker must be provided who will
-take a command and run in the background, executing the command when it wants.
-
-When an E type appears on the destination, then an external command must be
-provided to handle the message. For best results this command should not block.
-
-When a V type appears on the source, then a viewable source must be provided
-to produce a value on demand. For best results this query should not block.
-
-When a V type appears on the destination, then a worker must be provided who
-will take a query and run in the background, executing the query when it wants.
-
-## Rearranging routes between components
+## Routing QuasiQuoter
 
 For anything but the simplest connections between components braiding and
 merge / copying is incredibly tedious and complex. However there is a
@@ -162,4 +132,4 @@ merge >>> copy
 (ident <> ident <> ident <> swap <> ident <> ident <> ident)
 ```
 
-[logo]: https://raw.githubusercontent.com/evanrinehart/braided-monoidal-combinators/master/image.png "Combinator Symbols"
+[logo]: https://raw.githubusercontent.com/evanrinehart/microtubes/master/image.png "Combinator Symbols"

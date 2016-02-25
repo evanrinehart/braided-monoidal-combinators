@@ -1,4 +1,4 @@
-module Control.BraidedMonoidalCombinators.Swarm where
+module Control.Microtubes.Swarm where
 
 import Control.Concurrent
 import Control.Concurrent.STM

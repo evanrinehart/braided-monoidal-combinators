@@ -2,7 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GADTs #-}
-module Control.BraidedMonoidalCombinators.Diagrams where
+module Control.Microtubes.Diagrams where
 
 -- Type definitions and utilities for diagrams
 

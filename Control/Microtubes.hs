@@ -1,4 +1,4 @@
-module Control.BraidedMonoidalCombinators (
+module Control.Microtubes (
   D,
   E,
   V,
@@ -25,7 +25,7 @@ module Control.BraidedMonoidalCombinators (
   braid
 ) where
 
-import Control.BraidedMonoidalCombinators.Diagrams
-import Control.BraidedMonoidalCombinators.Runner
-import Control.BraidedMonoidalCombinators.Swarm
-import Control.BraidedMonoidalCombinators.Permutation
+import Control.Microtubes.Diagrams
+import Control.Microtubes.Runner
+import Control.Microtubes.Swarm
+import Control.Microtubes.Permutation

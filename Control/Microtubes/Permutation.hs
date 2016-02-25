@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE BangPatterns #-}
-module Control.BraidedMonoidalCombinators.Permutation where
+module Control.Microtubes.Permutation where
 
 import Data.List
 import Data.Maybe
@@ -12,7 +12,7 @@ import Control.Monad
 
 import Debug.Trace
 
-import Control.BraidedMonoidalCombinators.Diagrams hiding (Swap, Id, Merge)
+import Control.Microtubes.Diagrams hiding (Swap, Id, Merge)
 
 {-
 This module is dedicated to the quasiquoter which can auto re-route segments
