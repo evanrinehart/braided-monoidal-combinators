@@ -14,6 +14,7 @@ import Data.IORef
 import Data.Functor
 import Data.Char
 import Unsafe.Coerce
+import Control.Exception
 
 import Control.BraidedMonoidalCombinators.Diagrams
 import Control.BraidedMonoidalCombinators.Swarm
@@ -154,11 +155,11 @@ data Run :: [*] -> [*] -> * where
 begin :: r -> D r i j -> Run i j
 begin r dia = MkRun (r,dia) [] []
 
-equipCommandWorker :: (String, Worker (Command a)) -> Run (E a ': i) j -> Run i j
-equipCommandWorker (name, w) (MkRun b cs1 cs2) = MkRun b (cs1 ++ [EWrk name (castCmdWorker w)]) cs2
+equipCommandWorker :: Worker (Command a) -> Run (E a ': i) j -> Run i j
+equipCommandWorker w (MkRun b cs1 cs2) = MkRun b (cs1 ++ [EWrk "unknown command worker" (castCmdWorker w)]) cs2
 
-equipQueryWorker :: (String, Worker (Query a)) -> Run i (V a ': j) -> Run i j
-equipQueryWorker (name, w) (MkRun b cs1 cs2) = MkRun b (cs1 ++ [VWrk name (castQryWorker w)]) cs2
+equipQueryWorker :: Worker (Query a) -> Run i (V a ': j) -> Run i j
+equipQueryWorker w (MkRun b cs1 cs2) = MkRun b (cs1 ++ [VWrk "unknown query worker" (castQryWorker w)]) cs2
 
 equipQuery :: Query a -> Run (V a ': i) j -> Run i j
 equipQuery q (MkRun b cs1 cs2) = MkRun b (cs1 ++ [Qry (castQuery q)]) cs2
@@ -166,10 +167,13 @@ equipQuery q (MkRun b cs1 cs2) = MkRun b (cs1 ++ [Qry (castQuery q)]) cs2
 equipCommand :: Command a -> Run i (E a ': j) -> Run i j
 equipCommand c (MkRun b cs1 cs2) = MkRun b cs1 (cs2 ++ [Cmd (castCommand c)])
 
-run :: Run '[] '[] -> IO TerminationStatus
+run :: Run '[] '[] -> IO ()
 run r = do
   wait <- fork r
-  wait
+  status <- wait
+  case status of
+    WorkerStopped _ -> return ()
+    WorkerError _ e -> throwIO e
 
 fork :: Run '[] '[] -> IO (IO TerminationStatus)
 fork (MkRun (r,c) ins outs) = do
