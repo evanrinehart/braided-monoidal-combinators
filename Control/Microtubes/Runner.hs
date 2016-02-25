@@ -4,6 +4,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE BangPatterns #-}
 module Control.Microtubes.Runner where
 
 import GHC.Prim
@@ -18,7 +19,10 @@ import System.IO.Unsafe
 import Control.Exception
 import Control.Concurrent.STM
 
+import Debug.Trace
+
 import Control.Microtubes.Diagrams
+import qualified Control.Microtubes.Diagrams as D
 import Control.Microtubes.Swarm
 
 {-
@@ -88,6 +92,13 @@ copyCommand io1 io2 = \x -> do
   io1 x
   io2 x
 
+-- the argument to this is a Query (Query Any)
+doQuery :: Query Any -> Query Any
+doQuery q = do
+  let ioio = unsafeCoerce q :: Query (Query Any)
+  io <- ioio
+  io
+
 filterCommand :: Command Any -> Command Any
 filterCommand io = \x -> do
   let mv = unsafeCoerce x :: Maybe Any
@@ -117,7 +128,8 @@ data Crumb =
   Qry (Query Any) | -- a concrete, non-looping query
   Unknown | -- an unknown line that might loop
   EWrk String (Worker (Command Any)) | -- concrete worker, doesn't appear in algorithm
-  VWrk String (Worker (Query Any)) -- concrete worker, doesn't appear in algorithm
+  VWrk String (Worker (Query Any)) | -- concrete worker, doesn't appear in algorithm
+  BlackHole -- will never contact you, can be sent anything safely, querying would be an error
 
 instance Show Crumb where
   show cr = case cr of
@@ -128,6 +140,7 @@ instance Show Crumb where
     Unknown -> "Unknown"
     EWrk name _ -> "EWrk " ++ name
     VWrk name _ -> "VWrk " ++ name
+    BlackHole -> "BlackHole"
 
 dummy :: (String, Worker a)
 dummy = ("dummy", \_ -> forever (threadDelay 100000000))
@@ -143,25 +156,27 @@ zipWorkerE :: [Crumb] -> [Crumb] -> [(String, IO ())]
 zipWorkerE [] [] = []
 zipWorkerE ((EWrk _ _):_) (Unknown:_) = error "there is a command leading to an invalid loop"
 zipWorkerE ((EWrk name w):xs) (Cmd c:ys) = (name, w c) : zipWorkerE xs ys
+zipWorkerE ((EWrk name w):xs) (BlackHole:ys) = (name, w noop) : zipWorkerE xs ys
 zipWorkerE (_:xs) (_:ys) = zipWorkerE xs ys
 
 zipWorkerV :: [Crumb] -> [Crumb] -> [(String, IO ())]
 zipWorkerV [] [] = []
 zipWorkerV (VWrk _ _:_) (Unknown:_) = error "there is a query leading to an invalid loop"
 zipWorkerV (VWrk name w:xs) (Qry q:ys) = (name, w q) : zipWorkerV xs ys
+zipWorkerV (VWrk name w:xs) (BlackHole:_) = error "must be a bug: query worker paired with a blackhole"
 zipWorkerV (_:xs) (_:ys) = zipWorkerV xs ys
 
 data Run :: [*] -> [*] -> * where
-  MkRun :: forall r i j i' j'. (r, D r i j) -> [Crumb] -> [Crumb] -> Run i' j'
+  MkRun :: forall i j i' j'. D i j -> [Crumb] -> [Crumb] -> Run i' j'
 
-begin :: r -> D r i j -> Run i j
-begin r dia = MkRun (r,dia) [] []
+begin :: D i j -> Run i j
+begin dia = MkRun dia [] []
 
 equipCommandWorker :: Worker (Command a) -> Run (E a ': i) j -> Run i j
 equipCommandWorker w (MkRun b cs1 cs2) = MkRun b (cs1 ++ [EWrk "unknown command worker" (castCmdWorker w)]) cs2
 
 equipQueryWorker :: Worker (Query a) -> Run i (V a ': j) -> Run i j
-equipQueryWorker w (MkRun b cs1 cs2) = MkRun b (cs1 ++ [VWrk "unknown query worker" (castQryWorker w)]) cs2
+equipQueryWorker w (MkRun b cs1 cs2) = MkRun b cs1 (cs2 ++ [VWrk "unknown query worker" (castQryWorker w)])
 
 equipQuery :: Query a -> Run (V a ': i) j -> Run i j
 equipQuery q (MkRun b cs1 cs2) = MkRun b (cs1 ++ [Qry (castQuery q)]) cs2
@@ -178,7 +193,7 @@ run r = do
     WorkerError _ e -> throwIO e
 
 fork :: Run '[] '[] -> IO (IO TerminationStatus)
-fork (MkRun (r,c) ins outs) = do
+fork (MkRun d ins outs) = do
   let lCrumbs = dummyify ins
   let rCrumbs = dummyify outs
   putStrLn "provided:"
@@ -186,8 +201,7 @@ fork (MkRun (r,c) ins outs) = do
   print rCrumbs
   tidsRef <- newIORef []
   let append x = modifyIORef tidsRef (x:)
-  let (commands, queries, _, _, reqWorkers) = applyDiagram c r lCrumbs rCrumbs
-  putStrLn "transformed:"
+  let (commands, queries, _, _, reqWorkers) = applyDiagram d lCrumbs rCrumbs
   print commands
   print queries
   let workerEs = zipWorkerE ins commands
@@ -198,22 +212,22 @@ fork (MkRun (r,c) ins outs) = do
   forkSwarm (map (\x -> ("request worker", x)) reqWorkers ++ workerEs ++ workerVs)
 
 -- This is morally reprehensible!
-unsafeTChanOutOfNowhere :: () -> TChan Any
+unsafeTChanOutOfNowhere :: () -> TChan (IO Any)
 unsafeTChanOutOfNowhere () = unsafePerformIO newTChanIO
 
-setupMkReq :: Command Any -> (Any -> IO Any) -> TChan Any -> (Command Any, IO ())
-setupMkReq cmd req tchan = (cmd', worker) where
+setupMkReq :: Command Any -> TChan (IO Any) -> (Command (IO Any), IO ())
+setupMkReq cmd tchan = (cmd', worker) where
   cmd' x = atomically (writeTChan tchan x)
-  worker = reqWorker cmd req tchan
+  worker = reqWorker cmd tchan
 
-reqWorker :: (Any -> IO ()) -> (Any -> IO Any) -> TChan Any -> IO ()
-reqWorker exec req tchan = forever $ do
-  x <- atomically (readTChan tchan)
-  y <- req x
+reqWorker :: (Any -> IO ()) -> TChan (IO Any) -> IO ()
+reqWorker exec tchan = forever $ do
+  io <- atomically (readTChan tchan)
+  y <- io
   exec y
 
-applyDiagram :: D r i j -> r -> [Crumb] -> [Crumb] -> ([Crumb], [Crumb], [Crumb], [Crumb], [IO ()])
-applyDiagram c r ins outs = case c of
+applyDiagram :: D i j -> [Crumb] -> [Crumb] -> ([Crumb], [Crumb], [Crumb], [Crumb], [IO ()])
+applyDiagram c ins outs = case c of
   Empty -> ([], [], ins, outs, [])
   Id -> case (ins, outs) of
     ~(x:ins', y:outs') -> ([y], [x], ins', outs', [])
@@ -221,10 +235,15 @@ applyDiagram c r ins outs = case c of
     ~(x1:x2:ins', y1:y2:outs') -> ([y2,y1], [x2,x1], ins', outs', [])
   Copy -> case (ins, outs) of
     ~(x:ins', y1:y2:outs') -> ([x'], [y1',y2'], ins', outs', []) where
-      (x',y1',y2') = case (x,y1,y2) of
-        (_, Cmd c1, Cmd c2) -> (Cmd (copyCommand c1 c2), DummyE, DummyE)
-        (Qry q, _, _) -> (DummyV, Qry q, Qry q)
-        (_, _, _) -> (Unknown, Unknown, Unknown)
+        (y1', y2') = case x of
+          Qry q -> (Qry q, Qry q)
+          _ -> (Unknown, Unknown)
+        x' = case (y1, y2) of
+          (Cmd c1, Cmd c2) -> Cmd (copyCommand c1 c2)
+          (BlackHole, Cmd c2) -> Cmd c2
+          (Cmd c1, BlackHole) -> Cmd c1
+          (BlackHole, BlackHole) -> BlackHole
+          _ -> Unknown
   Merge -> case (ins, outs) of
     ~(x1:x2:ins', y:outs') -> ([y, y], [z], ins', outs', []) where
       z = case (x1,x2) of
@@ -232,58 +251,67 @@ applyDiagram c r ins outs = case c of
         (_, Unknown) -> Unknown
         _ -> DummyE
   Null -> case ins of
-    ~(x:ins') -> ([x'], [], ins', outs, []) where
-      x' = case x of
-        DummyE -> Cmd noop
-        (Qry _) -> DummyV
-        _ -> Unknown
+    ~(_:ins') -> ([BlackHole], [], ins', outs, [])
   Never -> case outs of
-    ~(y:outs') -> ([], [y'], ins, outs', []) where
-      y' = case y of
-        (Cmd _) -> DummyE
-        _ -> Unknown
+    ~(_:outs') -> ([], [DummyE], ins, outs', [])
   Fmap f -> case (ins, outs) of
     ~(x:ins', y:outs') -> ([x'], [y'], ins', outs', []) where
-      (x',y') = case (x,y) of
-        (_, Cmd cmd) -> (Cmd (mapCommand f cmd), DummyE)
-        (Qry q, _) -> (DummyV, Qry (mapQuery f q))
-        (_,_) -> (Unknown, Unknown)
+      x' = case y of
+        Cmd cmd -> Cmd (mapCommand f cmd)
+        BlackHole -> BlackHole
+        _ -> Unknown
+      y' = case x of
+        Qry q -> Qry (mapQuery f q)
+        _ -> Unknown
   Pure v -> case outs of
-    ~(_:outs') -> ([], [Qry (pureQuery v)], ins, outs', [])
+     ~(_:outs') -> ([], [Qry (pureQuery v)], ins, outs', [])
   Appl -> case (ins, outs) of
     ~(x1:x2:ins', y:outs') -> ([x1',x2'], [y'], ins', outs', []) where
-      (x1', x2', y') = case (x1,x2,y) of
-        (Qry q1, Qry q2, _) -> (DummyV, DummyV, Qry (applQueries q1 q2))
-        (_,_,_) -> (Unknown, Unknown, Unknown)
+      (x1', x2', y') = case (x1,x2) of
+        (Qry q1, Qry q2) -> (DummyV, DummyV, Qry (applQueries q1 q2))
+        (_,_) -> (Unknown, Unknown, Unknown)
   Snap f -> case (ins, outs) of
-    ~(x1:x2:ins', y:outs') -> ([x1',x2'], [y'], ins', outs', []) where
-      (x1', x2', y') = case (x1,x2,y) of
-        (_, Qry q, Cmd cmd) -> (Cmd (doSnap f q cmd), DummyV, DummyE)
-        (_,_,_) -> (Unknown, Unknown, Unknown)
-  Request getResource -> let (Resource exec view) = getResource r in case (ins, outs) of
-    ~(x:ins', y1:y2:outs') -> ([x'], [y1',y2'], ins', outs', mk) where
-      (x', y1', y2', mk) = case (x, y1, y2) of
-        (_, Cmd cmd, _) -> let (cmd', mkreq) = setupMkReq cmd (unsafeCoerce exec) (unsafeTChanOutOfNowhere ()) in (Cmd cmd', DummyE, Qry (viewCosnap view), [mkreq])
-        (_, _, _) -> (Unknown, Unknown, Unknown, [])
+    ~(_:x2:ins', y:outs') -> ([x1',x2'], [y'], ins', outs', []) where
+      (x1', x2', y') = case (x2,y) of
+        (Qry q, Cmd cmd) -> (Cmd (doSnap f q cmd), DummyV, DummyE)
+        (Qry q, BlackHole) -> (Cmd (doSnap f q noop), DummyV, DummyE)
+        (_,_) -> (Unknown, Unknown, Unknown)
+  Request -> case (ins, outs) of
+    ~(_:ins', y:outs') -> ([x'], [DummyE], ins', outs', mk) where
+      (x', mk) = case y of
+        Cmd cmd -> let (cmd', mkreq) = setupMkReq cmd (unsafeTChanOutOfNowhere ()) in (Cmd (unsafeCoerce cmd'), [mkreq])
+        BlackHole -> let (cmd', mkreq) = setupMkReq noop (unsafeTChanOutOfNowhere ()) in (Cmd (unsafeCoerce cmd'), [mkreq])
+        _ -> (Unknown, [])
+  Query -> case (ins, outs) of
+    ~(x:ins', _:outs') -> ([DummyV], [y'], ins', outs', []) where
+       y' = case x of
+          Qry q -> Qry (doQuery q)
+          _ -> Unknown
   Compose c1 c2 -> (leftCrumbs, rightCrumbs, ins', outs', mkr1++mkr2) where
-    (leftCrumbs, middleLeft, ins', _, mkr1) = applyDiagram c1 r ins middleRight
-    (middleRight, rightCrumbs, _, outs', mkr2) = applyDiagram c2 r middleLeft outs
+    (leftCrumbs, middleLeft, ins', _, mkr1) = applyDiagram c1 ins middleRight
+    (middleRight, rightCrumbs, _, outs', mkr2) = applyDiagram c2 middleLeft outs
   Filter -> case (ins, outs) of
-    ~(x:ins', y:outs') -> ([x'], [y'], ins', outs', []) where
-      (x', y') = case (x,y) of
-        (_, Cmd cmd) -> (Cmd (filterCommand cmd), DummyE)
-        (_, _) -> (Unknown, Unknown)
+    ~(_:ins', y:outs') -> ([x'], [DummyE], ins', outs', []) where
+      x' = case y of
+        Cmd cmd -> Cmd (filterCommand cmd)
+        BlackHole -> BlackHole
+        _ -> Unknown
   Sum c1 c2 -> (x1++x2, y1++y2, ins'', outs'', mkr1++mkr2) where
-    (x1, y1, ins', outs', mkr1) = applyDiagram c1 r ins outs
-    (x2, y2, ins'', outs'', mkr2) = applyDiagram c2 r ins' outs'
+    (x1, y1, ins', outs', mkr1) = applyDiagram c1 ins outs
+    (x2, y2, ins'', outs'', mkr2) = applyDiagram c2 ins' outs'
   Trace c' -> 
-    let (x:xs, y:ys, ins', outs',mkreqs) = applyDiagram c' r (Unknown:ins) (Unknown:outs) in
+    let (x:xs, y:ys, ins', outs',mkreqs) = applyDiagram c' (Unknown:ins) (Unknown:outs) in
     let drop1 (x:xs, y:ys, ins, outs, mkreqs) = (xs,ys,ins,outs,mkreqs) in
     case (x,y) of
-      (orig@(Cmd cmd), _) -> drop1 (applyDiagram c' r (DummyE:ins) (orig:outs))
-      (_, orig@(Qry q)) -> drop1 (applyDiagram c' r (orig:ins) (DummyV:outs))
+      (orig@(Cmd cmd), _) -> drop1 (applyDiagram c' (DummyE:ins) (orig:outs))
+      (BlackHole, _) -> drop1 (applyDiagram c' (DummyE:ins) (BlackHole:outs))
+      (_, orig@(Qry q)) -> drop1 (applyDiagram c' (orig:ins) (DummyV:outs))
       _ -> (xs,ys,ins',outs',mkreqs)
+
+debug_ :: Show s => s -> s
+debug_ x = Debug.Trace.trace ("debug: "++ show x) x
 
 -- experimental component which runs a sub program which can be swapped out
 -- data PortParts i j = PortParts [TMVar Any] [TMVar Any]
 -- Port :: (r -> PortParts i' j') -> (r -> BundleStorage i' j') -> DefaultPorts i' j' -> C r (E (Bundle i' j') ': i') (E TerminationStatus ': j')
+

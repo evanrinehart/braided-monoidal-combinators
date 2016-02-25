@@ -6,7 +6,6 @@ module Control.Microtubes (
   Command,
   Query,
   Worker,
-  Resource(..),
   Storage(..),
   (:++:),
   empty,ident,(<>),(>>>),swap,copy,merge,
@@ -22,10 +21,12 @@ module Control.Microtubes (
   equipQuery,
   TerminationStatus(..),
   begin,
-  braid
+  braid,
+  test
 ) where
 
 import Control.Microtubes.Diagrams
 import Control.Microtubes.Runner
 import Control.Microtubes.Swarm
 import Control.Microtubes.Permutation
+import Control.Microtubes.Test
