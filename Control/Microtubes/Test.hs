@@ -39,5 +39,5 @@ instance (Show a, TestOutput ts) => TestOutput (E a ': ts) where
 instance (Show a, TestOutput ts) => TestOutput (V a ': ts) where
   equipTestOut = equipTestOut . equipQueryWorker (\q -> forever (threadDelay 800000 >> q >>= print))
 
-test :: (TestInput i, TestOutput j) => D i j -> IO ()
-test d = run $ (equipTestIn . equipTestOut) (begin d)
+test :: (TestInput i, TestOutput j) => Run i j -> IO ()
+test r = run $ (equipTestIn . equipTestOut) r

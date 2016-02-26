@@ -265,7 +265,7 @@ applyDiagram c ins outs = case c of
         _ -> Unknown
   Pure v -> case outs of
      ~(_:outs') -> ([], [Qry (pureQuery v)], ins, outs', [])
-  Appl -> case (ins, outs) of
+  Apply -> case (ins, outs) of
     ~(x1:x2:ins', y:outs') -> ([x1',x2'], [y'], ins', outs', []) where
       (x1', x2', y') = case (x1,x2) of
         (Qry q1, Qry q2) -> (DummyV, DummyV, Qry (applQueries q1 q2))

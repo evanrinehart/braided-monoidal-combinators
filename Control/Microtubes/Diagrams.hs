@@ -24,7 +24,7 @@ data D :: [*] -> [*] -> * where
   Never :: D '[] '[E a]
   Fmap :: (a -> b) -> D '[f a] '[f b]
   Pure :: a -> D '[] '[V a]
-  Appl :: D '[V (a -> b), V a] '[V b]
+  Apply :: D '[V (a -> b), V a] '[V b]
   Snap :: (a -> b -> c) -> D '[V a, E b] '[E c]
   Compose :: D i j -> D j k -> D i k
   Filter :: D '[E (Maybe a)] '[E a]
@@ -44,7 +44,7 @@ instance Show (D i j) where
     Never -> "never"
     Fmap _ -> "dmap _"
     Pure _ -> "always _"
-    Appl -> "apply"
+    Apply -> "apply"
     Snap _ -> "snap _"
     Request -> "request"
     Query -> "query"
@@ -76,7 +76,7 @@ size d = case d of
   Never -> 1
   Fmap _ -> 1
   Pure _ -> 1
-  Appl -> 1
+  Apply -> 1
   Snap _ -> 1
   Request -> 1
   Compose d1 d2 -> 2
@@ -85,21 +85,49 @@ size d = case d of
   Trace d' -> 1
   Query -> 1
 
+(<>) :: D i j -> D i' j' -> D (i :++: i') (j :++: j')
 (<>) = Sum
+
+(>>>) :: D i j -> D j k -> D i k
 (>>>) = Compose
 
+ident :: D '[f a] '[f a]
 ident = Id
+
+empty :: D '[] '[]
 empty = Empty
+
+swap :: D '[f a, g b] '[g b, f a]
 swap = Swap
+
+copy :: D '[f a] '[f a, f a]
 copy = Copy
+
+merge :: D '[E a, E a] '[E a]
 merge = Merge
+
+hole :: D '[f a] '[]
 hole = Null
+
+never :: D '[] '[E a]
 never = Never
+
+dmap :: (a -> b) -> D '[f a] '[f b]
 dmap = Fmap
+
+always :: a -> D '[] '[V a]
 always = Pure
-apply = Appl
+
+apply :: D '[V (a -> b), V a] '[V b]
+apply = Apply
+
+snap :: (a -> b -> c) -> D '[V a, E b] '[E c]
 snap = Snap
+
+trace :: D (f a ': i) (f a ': j) -> D i j
 trace = Trace
+
+just :: D '[E (Maybe a)] '[E a]
 just = Filter
 
 snap' :: (a -> b -> c) -> D '[E b, V a] '[E c]
