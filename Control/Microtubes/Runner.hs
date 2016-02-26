@@ -72,8 +72,8 @@ mapCommand f io = \x -> do
   io (unsafeCoerce y)
 
 doSnap :: (a -> b -> c) -> Query Any -> Command Any -> Command Any
-doSnap f ioy ioz = \x -> do
-  y <- ioy
+doSnap f iox ioz = \y -> do
+  x <- iox
   let z = f (unsafeCoerce x) (unsafeCoerce y)
   ioz (unsafeCoerce z)
 
@@ -271,11 +271,11 @@ applyDiagram c ins outs = case c of
         (Qry q1, Qry q2) -> (DummyV, DummyV, Qry (applQueries q1 q2))
         (_,_) -> (Unknown, Unknown, Unknown)
   Snap f -> case (ins, outs) of
-    ~(_:x2:ins', y:outs') -> ([x1',x2'], [y'], ins', outs', []) where
-      (x1', x2', y') = case (x2,y) of
-        (Qry q, Cmd cmd) -> (Cmd (doSnap f q cmd), DummyV, DummyE)
-        (Qry q, BlackHole) -> (Cmd (doSnap f q noop), DummyV, DummyE)
-        (_,_) -> (Unknown, Unknown, Unknown)
+    ~(x:_:ins', y:outs') -> ([DummyV,x'], [DummyE], ins', outs', []) where
+      x' = case (x,y) of
+        (Qry q, Cmd cmd) -> Cmd (doSnap f q cmd)
+        (Qry q, BlackHole) -> Cmd (doSnap f q noop)
+        (_,_) -> Unknown
   Request -> case (ins, outs) of
     ~(_:ins', y:outs') -> ([x'], [DummyE], ins', outs', mk) where
       (x', mk) = case y of

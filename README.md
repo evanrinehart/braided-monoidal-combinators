@@ -88,8 +88,10 @@ Merge two query results where one is a function.
 ### `just :: D '[E (Maybe a)] '[E a]`
 Drop Nothings and only forward the unwrapped Justs.
 
-### `snap  :: (a -> b -> c) -> D '[E a, V b] '[E c]`
-### `snap' :: (a -> b -> c) -> D '[V b, E a] '[E c]`
+### `snap  :: (a -> b -> c) -> D '[V a, E b] '[E c]`
+### `snap' :: (a -> b -> c) -> D '[E b, V a] '[E c]`
+### `snap_ :: (a -> b) -> D '[V a, E c] '[E b]`
+### `snap_' :: (a -> b) -> D '[E c, V a] '[E b]`
 On the event do a query and combine with a function.
 
 ### `trace :: D (f a ': i) (f a ': j) -> D i j`

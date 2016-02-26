@@ -25,7 +25,7 @@ data D :: [*] -> [*] -> * where
   Fmap :: (a -> b) -> D '[f a] '[f b]
   Pure :: a -> D '[] '[V a]
   Appl :: D '[V (a -> b), V a] '[V b]
-  Snap :: (a -> b -> c) -> D '[E a, V b] '[E c]
+  Snap :: (a -> b -> c) -> D '[V a, E b] '[E c]
   Compose :: D i j -> D j k -> D i k
   Filter :: D '[E (Maybe a)] '[E a]
   Sum :: D i j -> D i' j' -> D (i :++: i') (j :++: j')
@@ -102,8 +102,14 @@ snap = Snap
 trace = Trace
 just = Filter
 
-snap' :: (a -> b -> c) -> D '[V a, E b] '[E c]
-snap' f = swap >>> snap (flip f)
+snap' :: (a -> b -> c) -> D '[E b, V a] '[E c]
+snap' f = swap >>> snap f
+
+snap_ :: (a -> b) -> D '[V a, E c] '[E b]
+snap_ f = snap (\x _ -> f x)
+
+snap_' :: (a -> b) -> D '[E c, V a] '[E b]
+snap_' f = snap' (\x _ -> f x)
 
 apply' :: D '[V a, V (a -> b)] '[V b]
 apply' = swap >>> apply
