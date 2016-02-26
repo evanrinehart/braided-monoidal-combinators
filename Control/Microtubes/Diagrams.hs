@@ -114,10 +114,8 @@ snap_' f = snap' (\x _ -> f x)
 apply' :: D '[V a, V (a -> b)] '[V b]
 apply' = swap >>> apply
 
-data Storage a = Storage (IO a) (a -> IO ())
-
-var :: Storage a -> D '[E a] '[V a]
-var (Storage get set) = emap set >>> request >>> hole >>> always get >>> query
+var :: IO a -> (a -> IO ()) -> D '[E a] '[V a]
+var get set = emap set >>> request >>> hole >>> always get >>> query
 
 request :: D '[E (IO a)] '[E a]
 request = Request 

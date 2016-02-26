@@ -6,7 +6,6 @@ module Control.Microtubes (
   Command,
   Query,
   Worker,
-  Storage(..),
   (:++:),
   empty,ident,(<>),(>>>),swap,copy,merge,
   hole,never,dmap,always,apply,snap,request,trace,

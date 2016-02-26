@@ -311,7 +311,4 @@ applyDiagram c ins outs = case c of
 debug_ :: Show s => s -> s
 debug_ x = Debug.Trace.trace ("debug: "++ show x) x
 
--- experimental component which runs a sub program which can be swapped out
--- data PortParts i j = PortParts [TMVar Any] [TMVar Any]
--- Port :: (r -> PortParts i' j') -> (r -> BundleStorage i' j') -> DefaultPorts i' j' -> C r (E (Bundle i' j') ': i') (E TerminationStatus ': j')
 
